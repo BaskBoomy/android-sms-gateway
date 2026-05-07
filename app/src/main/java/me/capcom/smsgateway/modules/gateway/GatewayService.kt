@@ -7,6 +7,7 @@ import io.ktor.http.HttpStatusCode
 import me.capcom.smsgateway.data.entities.MessageWithRecipients
 import me.capcom.smsgateway.domain.EntitySource
 import me.capcom.smsgateway.domain.MessageContent
+import me.capcom.smsgateway.helpers.SubscriptionsHelper
 import me.capcom.smsgateway.modules.events.EventBus
 import me.capcom.smsgateway.modules.gateway.events.DeviceRegisteredEvent
 import me.capcom.smsgateway.modules.gateway.services.SSEForegroundService
@@ -96,8 +97,9 @@ class GatewayService(
     }
     //endregion
 
-     //region Device
+    //region Device
     internal suspend fun registerDevice(
+        context: Context,
         pushToken: String?,
         registerMode: RegistrationMode
     ) {
@@ -109,7 +111,7 @@ class GatewayService(
         if (accessToken != null) {
             // if there's an access token, try to update push token
             try {
-                updateDevice(pushToken)
+                updateDevice(context, pushToken)
                 return
             } catch (e: ClientRequestException) {
                 // if token is invalid, try to register new one
@@ -121,9 +123,19 @@ class GatewayService(
 
         try {
             val deviceName = "${Build.MANUFACTURER}/${Build.PRODUCT}"
+            val simCards = SubscriptionsHelper.getActiveSimCards(context)
             val request = GatewayApi.DeviceRegisterRequest(
                 deviceName,
-                pushToken
+                pushToken,
+                simCards.map {
+                    GatewayApi.DeviceRegisterRequest.SimCard(
+                        it.slotIndex,
+                        it.simNumber,
+                        it.phoneNumber.redact(),
+                        it.carrierName.redact(),
+                        it.iccid.redact(),
+                    )
+                }
             )
             val response = when (registerMode) {
                 RegistrationMode.Anonymous -> api.deviceRegister(request, null)
@@ -156,17 +168,19 @@ class GatewayService(
         }
     }
 
-    internal suspend fun updateDevice(pushToken: String?) {
+    internal suspend fun updateDevice(context: Context, pushToken: String?) {
         if (!settings.enabled) return
 
         val settings = settings.registrationInfo ?: return
         val accessToken = settings.token
+        val simCards = SubscriptionsHelper.getActiveSimCards(context)
 
         api.devicePatch(
             accessToken,
             GatewayApi.DevicePatchRequest(
                 settings.id,
-                pushToken
+                pushToken,
+                simCards
             )
         )
 
@@ -303,4 +317,15 @@ class GatewayService(
             .externalIp
     }
     //endregion
+
+    private fun String?.redact(): String? = when {
+        this == null -> null
+        length > 4 -> replaceRange(
+            0,
+            length - 4,
+            "*".repeat(length - 4)
+        )
+
+        else -> "****"
+    }
 }

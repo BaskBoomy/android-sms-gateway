@@ -23,6 +23,7 @@ import io.ktor.util.encodeBase64
 import me.capcom.smsgateway.BuildConfig
 import me.capcom.smsgateway.domain.ProcessingState
 import me.capcom.smsgateway.extensions.configure
+import me.capcom.smsgateway.modules.localserver.domain.SimCard
 import me.capcom.smsgateway.modules.webhooks.domain.WebHookEvent
 import java.util.Date
 
@@ -142,7 +143,16 @@ class GatewayApi(
     data class DeviceRegisterRequest(
         val name: String,
         val pushToken: String?,
-    )
+        val simCards: List<SimCard>,
+    ) {
+        data class SimCard(
+            val slotIndex: Int,
+            val simNumber: Int,
+            val phoneNumber: String?,
+            val carrierName: String?,
+            val iccid: String?,
+        )
+    }
 
     data class DeviceRegisterResponse(
         val id: String,
@@ -154,6 +164,7 @@ class GatewayApi(
     data class DevicePatchRequest(
         val id: String,
         val pushToken: String?,
+        val simCards: List<SimCard>?,
     )
 
     data class MessagePatchRequest(
