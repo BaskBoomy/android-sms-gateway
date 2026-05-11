@@ -60,6 +60,14 @@ class MessagesSettings(
     val processingOrder: ProcessingOrder
         get() = storage.get<ProcessingOrder>(PROCESSING_ORDER) ?: ProcessingOrder.LIFO
 
+    // ── MMS 첨부 한도 (사용자가 settings 에서 조정 가능) ──────────────────────
+    // 한국 통신사 MMS PDU 안전선보다 넉넉. receiver 단말 거부 가능성 있어
+    // 운영자가 직접 조정해야 하는 값이라 하드코딩 안 함.
+    val maxAttachments: Int
+        get() = storage.get<Int>(MAX_ATTACHMENTS)?.takeIf { it > 0 } ?: DEFAULT_MAX_ATTACHMENTS
+    val maxAttachmentBytes: Int
+        get() = storage.get<Int>(MAX_ATTACHMENT_BYTES)?.takeIf { it > 0 } ?: DEFAULT_MAX_ATTACHMENT_BYTES
+
     init {
         migrate()
     }
@@ -93,6 +101,12 @@ class MessagesSettings(
         private const val LOG_LIFETIME_DAYS = "log_lifetime_days"
 
         private const val PROCESSING_ORDER = "processing_order"
+
+        private const val MAX_ATTACHMENTS = "max_attachments"
+        private const val MAX_ATTACHMENT_BYTES = "max_attachment_bytes"
+
+        const val DEFAULT_MAX_ATTACHMENTS = 20
+        const val DEFAULT_MAX_ATTACHMENT_BYTES = 1_048_576 // 1 MB
     }
 
     override fun export(): Map<String, *> {
@@ -104,6 +118,8 @@ class MessagesSettings(
             SIM_SELECTION_MODE to simSelectionMode.name,
             LOG_LIFETIME_DAYS to logLifetimeDays,
             PROCESSING_ORDER to processingOrder.name,
+            MAX_ATTACHMENTS to maxAttachments,
+            MAX_ATTACHMENT_BYTES to maxAttachmentBytes,
         )
     }
 
@@ -188,6 +204,26 @@ class MessagesSettings(
                     val changed = this.logLifetimeDays != logLifetimeDays
                     storage.set(key, logLifetimeDays?.toString())
 
+                    changed
+                }
+
+                MAX_ATTACHMENTS -> {
+                    val newValue = value?.toString()?.toFloat()?.toInt()
+                    if (newValue != null && newValue < 1) {
+                        throw IllegalArgumentException("Max attachments must be >= 1")
+                    }
+                    val changed = this.maxAttachments != (newValue ?: DEFAULT_MAX_ATTACHMENTS)
+                    storage.set(key, newValue?.toString())
+                    changed
+                }
+
+                MAX_ATTACHMENT_BYTES -> {
+                    val newValue = value?.toString()?.toFloat()?.toInt()
+                    if (newValue != null && newValue < 1024) {
+                        throw IllegalArgumentException("Max attachment bytes must be >= 1024")
+                    }
+                    val changed = this.maxAttachmentBytes != (newValue ?: DEFAULT_MAX_ATTACHMENT_BYTES)
+                    storage.set(key, newValue?.toString())
                     changed
                 }
 

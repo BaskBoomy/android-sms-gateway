@@ -72,6 +72,19 @@ data class PostMessageRequest(
             throw IllegalArgumentException("Text message is empty")
         }
 
+        // attachments 의 size/count 한도는 settings 에서 결정 — validateAttachments()
+        // 에서 별도 검사. data class 의 validate() 는 정적 검사만 (필드 형식).
+        textMessage?.attachments?.let { atts ->
+            for (a in atts) {
+                if (a.contentType.isBlank()) {
+                    throw IllegalArgumentException("attachment.contentType required")
+                }
+                if (a.data.isBlank()) {
+                    throw IllegalArgumentException("attachment.data (base64) required")
+                }
+            }
+        }
+
         if (phoneNumbers.isEmpty()) {
             throw IllegalArgumentException("Empty phone numbers list")
         }

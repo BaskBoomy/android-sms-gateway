@@ -59,4 +59,24 @@
             app:title="@string/messages_count"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
+
+    <!-- MMS 첨부 한도 — 운영자가 통신사/단말 정책에 맞게 조정 (한국 캐리어
+         MMS PDU ~700KB 안전선 참고). 기본값은 MessagesSettings 의
+         DEFAULT_MAX_ATTACHMENTS / DEFAULT_MAX_ATTACHMENT_BYTES 와 동기화. -->
+    <PreferenceCategory app:title="MMS 첨부 한도">
+        <EditTextPreference
+            android:defaultValue="20"
+            android:icon="@drawable/ic_send"
+            android:key="messages.max_attachments"
+            app:title="메시지당 첨부 개수 (max)"
+            app:summary="기본 20개. 통신사/단말이 거부하면 줄이세요."
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:defaultValue="1048576"
+            android:icon="@drawable/ic_send"
+            android:key="messages.max_attachment_bytes"
+            app:title="첨부 1개당 최대 바이트"
+            app:summary="기본 1048576 (1 MB). 디코드 후 사이즈 기준."
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
 </PreferenceScreen>

@@ -22,7 +22,10 @@ import me.capcom.smsgateway.modules.localserver.domain.PostMessagesInboxExportRe
 import me.capcom.smsgateway.modules.localserver.domain.messages.DataMessage
 import me.capcom.smsgateway.modules.localserver.domain.messages.PostMessageRequest
 import me.capcom.smsgateway.modules.localserver.domain.messages.TextMessage
+import me.capcom.smsgateway.modules.localserver.domain.messages.AttachmentPersister
+import me.capcom.smsgateway.modules.localserver.domain.messages.validateAttachments
 import me.capcom.smsgateway.modules.messages.MessagesService
+import me.capcom.smsgateway.modules.messages.MessagesSettings
 import me.capcom.smsgateway.modules.messages.data.Message
 import me.capcom.smsgateway.modules.messages.data.SendParams
 import me.capcom.smsgateway.modules.messages.data.SendRequest
@@ -35,6 +38,7 @@ class MessagesRoutes(
     private val messagesService: MessagesService,
     private val receiverService: ReceiverService,
     private val settings: LocalServerSettings,
+    private val messagesSettings: MessagesSettings,
 ) {
     fun register(routing: Route) {
         routing.apply {
@@ -123,6 +127,7 @@ class MessagesRoutes(
         post {
             if (!requireScope(AuthScopes.MessagesSend)) return@post
             val request = call.receive<PostMessageRequest>().validate()
+            validateAttachments(request, messagesSettings)
 
             if (request.deviceId?.let { it == settings.deviceId } == false) {
                 call.respond(
@@ -143,7 +148,11 @@ class MessagesRoutes(
                 }
 
                 request.textMessage != null -> {
-                    MessageContent.Text(request.textMessage.text)
+                    val ctx = this@MessagesRoutes.context
+                    val refs = request.textMessage.attachments?.takeIf { it.isNotEmpty() }?.let {
+                        AttachmentPersister.persist(ctx, it)
+                    }
+                    MessageContent.Text(request.textMessage.text, refs)
                 }
 
                 request.dataMessage != null -> {

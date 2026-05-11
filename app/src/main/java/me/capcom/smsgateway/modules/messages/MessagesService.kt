@@ -363,24 +363,31 @@ class MessagesService(
                     val parts = smsManager.divideMessage(text)
                     dao.updatePartsCount(id, parts.size)
 
-                    if (parts.size > 1) {
-                        // Korean LMS routing: long messages go as MMS so the
-                        // receiver gets a single message, not N split SMS.
-                        // sentIntent is fired by SmsManager.sendMultimediaMessage
-                        // when the OS finishes the send attempt — EventsReceiver
-                        // then maps the resultCode to Sent/Failed via the same
-                        // path SMS uses. deliveredIntent is unused (Korean
-                        // carriers don't return per-message MMS delivery acks).
-                        { phoneNumber: String, sentIntent: PendingIntent, _: PendingIntent? ->
-                            MmsSender.sendTextMms(
-                                context = context,
-                                recipient = phoneNumber,
-                                text = text,
-                                sentIntent = sentIntent,
-                                logs = logsService,
-                                smsManager = smsManager,
-                            )
-                        }
+                    val attachmentRefs = content.attachments ?: emptyList()
+                    val mustGoAsMms = parts.size > 1 || attachmentRefs.isNotEmpty()
+
+                    if (mustGoAsMms) {
+                        // MMS path 강제 조건:
+                        //  1) parts.size > 1: 한국 통신사가 70자+ 한글 메시지를 MMS 로 받아
+                        //     LMS 로 자동 라우팅 — 분할 SMS 회피.
+                        //  2) 첨부가 있으면 길이 무관 무조건 MMS.
+                        // sentIntent 는 OS sendMultimediaMessage 가 발사하며,
+                        // EventsReceiver 가 resultCode 를 Sent/Failed 로 매핑한다.
+                        // deliveredIntent 는 무시 (Korean carriers don't return
+                        // per-message MMS delivery acks).
+                        val fn: (String, PendingIntent, PendingIntent?) -> Unit =
+                            { phoneNumber, sentIntent, _ ->
+                                MmsSender.sendTextMms(
+                                    context = context,
+                                    recipient = phoneNumber,
+                                    text = text,
+                                    attachments = attachmentRefs,
+                                    sentIntent = sentIntent,
+                                    logs = logsService,
+                                    smsManager = smsManager,
+                                )
+                            }
+                        fn
                     } else {
                         { phoneNumber: String, sentIntent: PendingIntent, deliveredIntent: PendingIntent? ->
                             smsManager.sendTextMessage(

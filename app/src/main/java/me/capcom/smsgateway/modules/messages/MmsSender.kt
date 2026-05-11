@@ -12,6 +12,7 @@ import com.google.android.mms.pdu_alt.PduBody
 import com.google.android.mms.pdu_alt.PduComposer
 import com.google.android.mms.pdu_alt.PduPart
 import com.google.android.mms.pdu_alt.SendReq
+import me.capcom.smsgateway.domain.MessageContent
 import me.capcom.smsgateway.modules.logs.LogsService
 import me.capcom.smsgateway.modules.logs.db.LogEntry
 import java.io.File
@@ -41,6 +42,7 @@ internal object MmsSender {
         context: Context,
         recipient: String,
         text: String,
+        attachments: List<MessageContent.AttachmentRef> = emptyList(),
         sentIntent: PendingIntent,
         logs: LogsService,
         smsManager: SmsManager,
@@ -52,10 +54,11 @@ internal object MmsSender {
             mapOf(
                 "recipient" to recipient,
                 "textLength" to text.length.toString(),
+                "attachmentCount" to attachments.size.toString(),
             ),
         )
         try {
-            val pdu = buildTextMmsPdu(context, recipient, text)
+            val pdu = buildTextMmsPdu(context, recipient, text, attachments)
             val contentUri = writePduToCache(context, pdu)
             // Grant the OS MMS service read access to our cache file.
             // com.android.phone is the package that hosts MmsService on
@@ -96,7 +99,12 @@ internal object MmsSender {
         }
     }
 
-    private fun buildTextMmsPdu(context: Context, recipient: String, text: String): ByteArray {
+    private fun buildTextMmsPdu(
+        context: Context,
+        recipient: String,
+        text: String,
+        attachments: List<MessageContent.AttachmentRef>,
+    ): ByteArray {
         val sendReq = SendReq().apply {
             addTo(EncodedStringValue(recipient))
             messageClass = "personal".toByteArray()
@@ -109,6 +117,21 @@ internal object MmsSender {
                 data = text.toByteArray(Charsets.UTF_8)
             }
             body.addPart(textPart)
+            attachments.forEachIndexed { idx, ref ->
+                val file = File(ref.filePath)
+                if (!file.exists()) {
+                    // 캐시가 OS 에 의해 정리됐을 수 있음. 발사 자체는 진행 X 가 안전.
+                    throw IllegalStateException("attachment file missing: ${ref.filePath}")
+                }
+                val bytes = file.readBytes()
+                val locName = ref.filename ?: "att_${idx + 1}"
+                body.addPart(PduPart().apply {
+                    contentType = ref.contentType.toByteArray()
+                    contentLocation = locName.toByteArray()
+                    contentId = "<att_${idx + 1}>".toByteArray()
+                    data = bytes
+                })
+            }
             this.body = body
         }
         return PduComposer(context, sendReq).make()
