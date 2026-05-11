@@ -374,6 +374,7 @@ class MessagesService(
                                 context = context,
                                 recipient = phoneNumber,
                                 text = text,
+                                logs = logsService,
                             )
                         }
                     } else {
