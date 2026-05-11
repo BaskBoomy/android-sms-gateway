@@ -366,15 +366,19 @@ class MessagesService(
                     if (parts.size > 1) {
                         // Korean LMS routing: long messages go as MMS so the
                         // receiver gets a single message, not N split SMS.
-                        // OS-level MmsService handles delivery; sentIntent
-                        // is not invoked, so the caller's immediate Processed
-                        // mark is the only success signal (parity with SMS).
-                        { phoneNumber: String, _: PendingIntent, _: PendingIntent? ->
+                        // sentIntent is fired by SmsManager.sendMultimediaMessage
+                        // when the OS finishes the send attempt — EventsReceiver
+                        // then maps the resultCode to Sent/Failed via the same
+                        // path SMS uses. deliveredIntent is unused (Korean
+                        // carriers don't return per-message MMS delivery acks).
+                        { phoneNumber: String, sentIntent: PendingIntent, _: PendingIntent? ->
                             MmsSender.sendTextMms(
                                 context = context,
                                 recipient = phoneNumber,
                                 text = text,
+                                sentIntent = sentIntent,
                                 logs = logsService,
+                                smsManager = smsManager,
                             )
                         }
                     } else {
