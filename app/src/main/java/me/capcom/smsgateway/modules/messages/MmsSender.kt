@@ -55,7 +55,7 @@ internal object MmsSender {
             ),
         )
         try {
-            val pdu = buildTextMmsPdu(recipient, text)
+            val pdu = buildTextMmsPdu(context, recipient, text)
             val contentUri = writePduToCache(context, pdu)
             // Grant the OS MMS service read access to our cache file.
             // com.android.phone is the package that hosts MmsService on
@@ -96,7 +96,7 @@ internal object MmsSender {
         }
     }
 
-    private fun buildTextMmsPdu(recipient: String, text: String): ByteArray {
+    private fun buildTextMmsPdu(context: Context, recipient: String, text: String): ByteArray {
         val sendReq = SendReq().apply {
             addTo(EncodedStringValue(recipient))
             messageClass = "personal".toByteArray()
@@ -111,7 +111,7 @@ internal object MmsSender {
             body.addPart(textPart)
             this.body = body
         }
-        return PduComposer(null, sendReq).make()
+        return PduComposer(context, sendReq).make()
     }
 
     private fun writePduToCache(context: Context, pdu: ByteArray): android.net.Uri {
