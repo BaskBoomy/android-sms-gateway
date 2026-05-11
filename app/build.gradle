@@ -117,6 +117,11 @@ dependencies {
 
     implementation("com.aventrix.jnanoid:jnanoid:2.0.0")
 
+    // MMS PDU helpers (com.google.android.mms.pdu_alt.*) for text-only MMS that
+    // Korean carriers auto-route as LMS. Used when message exceeds SMS multipart
+    // threshold to avoid arrival as N split SMS messages.
+    implementation 'com.klinkerapps:android-smsmms:5.2.6'
+
     implementation("androidx.room:room-ktx:$room_version")
     annotationProcessor("androidx.room:room-compiler:$room_version")
     kapt("androidx.room:room-compiler:$room_version")

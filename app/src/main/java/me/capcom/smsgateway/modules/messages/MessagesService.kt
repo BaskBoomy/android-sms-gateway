@@ -364,13 +364,16 @@ class MessagesService(
                     dao.updatePartsCount(id, parts.size)
 
                     if (parts.size > 1) {
-                        { phoneNumber: String, sentIntent: PendingIntent, deliveredIntent: PendingIntent? ->
-                            smsManager.sendMultipartTextMessage(
-                                phoneNumber,
-                                null,
-                                parts,
-                                ArrayList(List(parts.size) { sentIntent }),
-                                deliveredIntent?.let { intent -> ArrayList(List(parts.size) { intent }) }
+                        // Korean LMS routing: long messages go as MMS so the
+                        // receiver gets a single message, not N split SMS.
+                        // OS-level MmsService handles delivery; sentIntent
+                        // is not invoked, so the caller's immediate Processed
+                        // mark is the only success signal (parity with SMS).
+                        { phoneNumber: String, _: PendingIntent, _: PendingIntent? ->
+                            MmsSender.sendTextMms(
+                                context = context,
+                                recipient = phoneNumber,
+                                text = text,
                             )
                         }
                     } else {
