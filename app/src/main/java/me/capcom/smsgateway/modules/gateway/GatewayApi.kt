@@ -177,6 +177,8 @@ class GatewayApi(
     sealed class MessageContent {
         class Text(
             val text: String,
+            // MMS 첨부(base64). cloud(self-host) 서버가 textMessage.attachments 로 전달.
+            val attachments: List<Attachment>? = null,
         ) : MessageContent()
 
         class Data(
@@ -184,6 +186,13 @@ class GatewayApi(
             val port: UShort,
         ) : MessageContent()
     }
+
+    // cloud 경로 MMS 첨부 — 로컬서버 Attachment 와 동일 shape (contentType, base64 data, filename?)
+    data class Attachment(
+        val contentType: String,
+        val data: String,
+        val filename: String? = null,
+    )
 
     data class Message(
         val id: String,

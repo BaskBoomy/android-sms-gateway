@@ -14,6 +14,8 @@ import me.capcom.smsgateway.modules.gateway.workers.PullMessagesWorker
 import me.capcom.smsgateway.modules.gateway.workers.SendStateWorker
 import me.capcom.smsgateway.modules.gateway.workers.SettingsUpdateWorker
 import me.capcom.smsgateway.modules.gateway.workers.WebhooksUpdateWorker
+import me.capcom.smsgateway.modules.localserver.domain.messages.Attachment
+import me.capcom.smsgateway.modules.localserver.domain.messages.AttachmentPersister
 import me.capcom.smsgateway.modules.logs.LogsService
 import me.capcom.smsgateway.modules.logs.db.LogEntry
 import me.capcom.smsgateway.modules.messages.MessagesService
@@ -232,7 +234,15 @@ class GatewayService(
             me.capcom.smsgateway.modules.messages.data.Message(
                 message.id,
                 when (val content = message.content) {
-                    is GatewayApi.MessageContent.Text -> MessageContent.Text(content.text)
+                    is GatewayApi.MessageContent.Text -> {
+                        // cloud 첨부(base64)를 로컬서버 경로와 동일하게 cache 파일로 persist →
+                        // AttachmentRef 로 MmsSender 에 연결(첨부 있으면 MMS 로 발사).
+                        val refs = content.attachments
+                            ?.takeIf { it.isNotEmpty() }
+                            ?.map { Attachment(it.contentType, it.data, it.filename) }
+                            ?.let { AttachmentPersister.persist(context, it) }
+                        MessageContent.Text(content.text, refs)
+                    }
                     is GatewayApi.MessageContent.Data -> MessageContent.Data(
                         content.data,
                         content.port
