@@ -47,6 +47,14 @@ class GatewaySettings(
     val notificationChannel: NotificationChannel
         get() = storage.get<NotificationChannel>(NOTIFICATION_CHANNEL) ?: NotificationChannel.AUTO
 
+    fun setServerUrl(url: String) {
+        storage.set(CLOUD_URL, url)
+    }
+
+    fun setNotificationChannel(channel: NotificationChannel) {
+        storage.set(NOTIFICATION_CHANNEL, channel.name)
+    }
+
     companion object {
         private const val REGISTRATION_INFO = "REGISTRATION_INFO"
         private const val ENABLED = "ENABLED"

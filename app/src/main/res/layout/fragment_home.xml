@@ -251,6 +251,15 @@
         android:layout_width="match_parent"
         android:layout_height="8dp" />
 
+    <Button
+        android:id="@+id/buttonQrRegister"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="QR 스캔으로 등록" />
+
     <ToggleButton
         android:id="@+id/buttonStart"
         android:layout_width="match_parent"

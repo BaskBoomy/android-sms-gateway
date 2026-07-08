@@ -26,6 +26,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.lifecycleScope
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
 import me.capcom.smsgateway.R
 import me.capcom.smsgateway.databinding.FragmentHomeBinding
@@ -40,6 +42,7 @@ import me.capcom.smsgateway.modules.localserver.LocalServerSettings
 import me.capcom.smsgateway.modules.localserver.events.IPReceivedEvent
 import me.capcom.smsgateway.modules.orchestrator.OrchestratorService
 import me.capcom.smsgateway.ui.dialogs.FirstStartDialogFragment
+import org.json.JSONObject
 import org.koin.android.ext.android.inject
 
 class HomeFragment : Fragment() {
@@ -163,6 +166,15 @@ class HomeFragment : Fragment() {
 
         binding.buttonStart.setOnClickListener {
             actionStart(binding.buttonStart.isChecked)
+        }
+
+        binding.buttonQrRegister.setOnClickListener {
+            qrScanLauncher.launch(ScanOptions().apply {
+                setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                setPrompt("학비서 화면의 QR을 비추세요")
+                setBeepEnabled(false)
+                setOrientationLocked(false)
+            })
         }
 
 //        if (settingsHelper.autostart) {
@@ -393,6 +405,40 @@ class HomeFragment : Fragment() {
             getString(R.string.to_apply_the_changes_restart_the_app_using_the_button_below),
             Toast.LENGTH_SHORT
         ).show()
+    }
+
+    private val qrScanLauncher = registerForActivityResult(ScanContract()) { result ->
+        val contents = result.contents ?: return@registerForActivityResult
+        try {
+            val obj = JSONObject(contents)
+            val serverUrl = obj.getString("serverUrl")
+            val code = obj.getString("code")
+            gatewaySettings.setServerUrl(serverUrl)
+            gatewaySettings.setNotificationChannel(GatewaySettings.NotificationChannel.SSE_ONLY)
+            gatewaySettings.enabled = true
+            lifecycleScope.launch {
+                try {
+                    gatewaySvc.registerDevice(
+                        null,
+                        GatewayService.RegistrationMode.WithCode(code)
+                    )
+                    requestPermissionsAndStart()
+                    Toast.makeText(requireContext(), "등록 완료", Toast.LENGTH_SHORT).show()
+                } catch (th: Throwable) {
+                    Toast.makeText(
+                        requireContext(),
+                        "등록 실패: ${th.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        } catch (e: Exception) {
+            Toast.makeText(
+                requireContext(),
+                "QR 형식 오류: ${e.message}",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     private val permissionsRequest = registerForActivityResult(
